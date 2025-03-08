@@ -1,0 +1,38 @@
+name: api_42_app
+description: Application Flutter pour l'API 42
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  app_links: ^6.4.0
+  dropdown_button2: ^2.3.8
+  flutter:
+    sdk: flutter
+  flutter_radar_chart: ^0.2.1
+  provider: ^6.0.5
+  flutter_svg: ^1.0.0
+  http: ^1.1.0
+#  flutter_web_auth: ^0.6.0
+  flutter_dotenv: ^5.1.0
+  cupertino_icons: ^1.0.2
+  google_fonts: ^5.1.0
+  cached_network_image: ^3.2.3
+  shared_preferences: ^2.4.0
+
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/
