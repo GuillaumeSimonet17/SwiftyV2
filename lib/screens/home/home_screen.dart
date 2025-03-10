@@ -21,14 +21,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int currentPage = 1;
   String username = '';
-  late Future<Map<String, dynamic>> userDataFuture;
+  late Future<Map<String, dynamic>> userDataFutureMe;
+  late Future<Map<String, dynamic>>? userDataFutureSearch;
+  TextEditingController _searchController = TextEditingController();
+  String errorMsg = '';
 
   @override
   void initState() {
     super.initState();
-    userDataFuture = fetchUserData();
-    }
-
+    userDataFutureMe = fetchUserData();
+    userDataFutureSearch = null;
+  }
 
   Future<Map<String, dynamic>> fetchUserData() async {
     try {
@@ -59,7 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
             'https://api.intra.42.fr/v2/cursus_users?filter[cursus_id]=21&filter[campus_id]=9&sort=-level&page[size]=9&page[number]=$page'),
         headers: {'Authorization': 'Bearer ${widget.accessToken}'},
       );
-
       if (response.statusCode == 200) {
         List<dynamic> data = jsonDecode(response.body);
         return data
@@ -76,6 +78,34 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _searchExe(String value) async {
+    final response = await http.get(
+      Uri.parse('https://api.intra.42.fr/v2/users/$value'),
+      headers: {'Authorization': 'Bearer ${widget.accessToken}'},
+    );
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      print('============$data');
+
+      setState(() {
+        errorMsg = '';
+        userDataFutureSearch = Future.value(data);
+      });
+    } else {
+      setState(() {
+        errorMsg = 'User not found';
+      });
+    }
+  }
+
+  void deleteSearch() {
+    setState(() {
+      errorMsg = '';
+      userDataFutureSearch = null;
+      _searchController.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -89,12 +119,25 @@ class _HomeScreenState extends State<HomeScreen> {
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Get 42 or Die Tryin\'',
+              Text('Get 42',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.primary,
-                  )
+                  )),
+              Padding(padding: EdgeInsets.all(8.0)),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(hintText: 'Rechercher...'),
+                  onSubmitted: (value) {
+                    _searchExe(value);
+                  },
+                  style: TextStyle(color: Colors.black),
+                ),
               ),
-              DropdownWidget(username:username, onLogout: () => logout(context),)
+              DropdownWidget(
+                username: username,
+                onLogout: () => logout(context),
+              )
             ],
           ),
           bottom: TabBar(
@@ -107,145 +150,203 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            Center(
-              child: FutureBuilder<Map<String, dynamic>>(
-                future: userDataFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return CircularProgressIndicator();
-                  } else if (snapshot.hasError) {
-                    return Text('Unknown user');
-                  } else if (snapshot.hasData) {
-                    final user = snapshot.data!;
-                    List<dynamic> cursus = user['cursus_users'];
-                    List<dynamic> projects = user['projects_users'];
-
-                    List<dynamic> skillsData =
-                        cursus.isNotEmpty && cursus[1] != null
-                            ? cursus[1]['skills']
-                            : [];
-                    List<String> skillNames = skillsData
-                        .map((s) =>
-                            '${s['name']}: ${(s['level'] as num).toStringAsFixed(2)}')
-                        .toList();
-                    List<double> skillLevels = skillsData
-                        .map((s) => (s['level'] as num).toDouble())
-                        .toList();
-                    return SingleChildScrollView(
-                        child: Container(
-                      width: 700,
-                      margin: EdgeInsets.only(top: 20),
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: AssetImage('assets/background.png'),
-                          fit: BoxFit.cover,
-                        ),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(50),
-                          topRight: Radius.circular(50),
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+        body: Stack(children: [
+          TabBarView(
+            children: [
+              Center(
+                child: errorMsg.isNotEmpty
+                    ? Column(
                         children: [
-                          SizedBox(height: 50),
-                          UserInfos(
-                              user: user,
-                              username: username,
-                              cursus: cursus,
-                              image: user['image']['link']),
-                          SizedBox(height: 70),
-                          RadarChartExtend(
-                              skillNames: skillNames, skillLevels: skillLevels),
-                          SizedBox(height: 70),
-                          ProjectsList(projects: projects),
+                          Text(errorMsg,
+                              style: TextStyle(
+                                color: Colors.black,
+                              )
+                          ),
+                          ElevatedButton(
+                              onPressed: deleteSearch,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 30, vertical: 15),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      10), // Coins arrondis
+                                ),
+                              ),
+                              child: Text('Close')),
                         ],
-                      ),
-                    ));
-                  } else {
-                    return Text("Aucune donnée disponible");
-                  }
-                },
-              ),
-            ),
-            Column(
-              children: [
-                Expanded(
-                  child: FutureBuilder<List<Map<String, dynamic>>>(
-                    future: fetchAllUsersData(currentPage),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return Center(child: CircularProgressIndicator());
-                      } else if (snapshot.hasError) {
-                        return Center(child: Text('Erreur: ${snapshot.error}'));
-                      } else if (snapshot.hasData) {
-                        List<Map<String, dynamic>> data = snapshot.data!;
+                      )
+                    : FutureBuilder<Map<String, dynamic>>(
+                        future: userDataFutureSearch ?? userDataFutureMe,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return CircularProgressIndicator();
+                          } else if (snapshot.hasError) {
+                            return Text('Unknown user');
+                          } else if (snapshot.hasData) {
+                            final user = snapshot.data!;
+                            List<dynamic> cursus = user['cursus_users'];
+                            List<dynamic> projects = user['projects_users'];
 
-                        return ProfilesList(currentPage:currentPage, data: data);
-                      } else {
-                        return Center(child: Text('Aucune donnée disponible'));
-                      }
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Container(
-                    width: 700,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        ElevatedButton(
-                          onPressed: currentPage > 1
-                              ? () {
-                                  setState(() {
-                                    currentPage--;
-                                  });
-                                }
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 30, vertical: 15),
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(10), // Coins arrondis
-                            ),
-                          ),
-                          child: Text("Précédent"),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              currentPage++;
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            // Fond blanc
-                            foregroundColor: Color(0xFF003366),
-                            // Texte noir
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 30, vertical: 15),
-                            // Ajuste la taille du bouton
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(10), // Coins arrondis
-                            ),
-                          ),
-                          child: Text("Suivant"),
-                        ),
-                      ],
+                            List<dynamic> skillsData =
+                                cursus.isNotEmpty && cursus[1] != null
+                                    ? cursus[1]['skills']
+                                    : [];
+                            List<String> skillNames = skillsData
+                                .map((s) =>
+                                    '${s['name']}: ${(s['level'] as num).toStringAsFixed(2)}')
+                                .toList();
+                            List<double> skillLevels = skillsData
+                                .map((s) => (s['level'] as num).toDouble())
+                                .toList();
+
+                            return SingleChildScrollView(
+                                child: Container(
+                              width: 700,
+                              margin: EdgeInsets.only(top: 20),
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage('assets/background.png'),
+                                  fit: BoxFit.cover,
+                                ),
+                                borderRadius: BorderRadius.only(
+                                  topLeft: Radius.circular(50),
+                                  topRight: Radius.circular(50),
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (userDataFutureSearch != null)
+                                    Column(children: [
+                                      SizedBox(height: 20),
+                                      Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          children: [
+                                            ElevatedButton(
+                                                onPressed: deleteSearch,
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.black,
+                                                  foregroundColor: Colors.white,
+                                                  padding: EdgeInsets.symmetric(
+                                                      horizontal: 30,
+                                                      vertical: 15),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10), // Coins arrondis
+                                                  ),
+                                                ),
+                                                child: Text('Close')),
+                                            SizedBox(width: 30),
+                                          ]),
+                                    ]),
+                                  SizedBox(height: 30),
+                                  UserInfos(
+                                      user: user,
+                                      username: user['login'],
+                                      staff: user['staff?'],
+                                      cursus: cursus,
+                                      image: user['image']['link']),
+                                  SizedBox(height: 70),
+                                  RadarChartExtend(
+                                      skillNames: skillNames,
+                                      skillLevels: skillLevels),
+                                  SizedBox(height: 70),
+                                  ProjectsList(projects: projects),
+                                ],
+                              ),
+                            ));
+                          } else {
+                            return Text("Aucune donnée disponible");
+                          }
+                        },
+                      ),
+              ),
+              Column(
+                children: [
+                  Expanded(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
+                      future: fetchAllUsersData(currentPage),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator());
+                        } else if (snapshot.hasError) {
+                          return Center(
+                              child: Text('Erreur: ${snapshot.error}'));
+                        } else if (snapshot.hasData) {
+                          List<Map<String, dynamic>> data = snapshot.data!;
+
+                          return ProfilesList(
+                              currentPage: currentPage, data: data);
+                        } else {
+                          return Center(
+                              child: Text('Aucune donnée disponible'));
+                        }
+                      },
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
-        ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Container(
+                      width: 700,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          ElevatedButton(
+                            onPressed: currentPage > 1
+                                ? () {
+                                    setState(() {
+                                      currentPage--;
+                                    });
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 30, vertical: 15),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(10), // Coins arrondis
+                              ),
+                            ),
+                            child: Text("Précédent"),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                currentPage++;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              // Fond blanc
+                              foregroundColor: Color(0xFF003366),
+                              // Texte noir
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 30, vertical: 15),
+                              // Ajuste la taille du bouton
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(10), // Coins arrondis
+                              ),
+                            ),
+                            child: Text("Suivant"),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ]),
       ),
     );
   }

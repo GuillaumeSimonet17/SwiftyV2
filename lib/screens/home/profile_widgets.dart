@@ -52,12 +52,14 @@ class ProfileCard extends StatefulWidget {
   final user;
   final level;
   final index;
+  final String? link;
 
   const ProfileCard({
     Key? key,
     required this.index,
     required this.user,
     required this.level,
+    this.link,
   }) : super(key: key);
 
   @override
@@ -97,14 +99,20 @@ class _ProfileCardState extends State<ProfileCard> {
               children: [
                 Text(widget.index),
                 SizedBox(width: 12),
-                ClipOval(
+                widget.user['image']['link'] != null
+                    ? ClipOval(
                   child: Image.network(
-                    widget.user['image']['link'],
+                    widget.user['image']['link']!,
                     width: 50,
                     height: 50,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(Icons.person);
+                    },
                   ),
-                ),
+                )
+                    : Icon(Icons.person),
+
                 SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
