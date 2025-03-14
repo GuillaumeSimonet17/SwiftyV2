@@ -15,7 +15,7 @@ void main() async {
 class MyApp extends StatelessWidget {
   Future<String?> _getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('access_token'); // Retourne le token ou null
+    return prefs.getString('access_token');
   }
 
   @override

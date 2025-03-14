@@ -4,7 +4,7 @@ import 'package:flutter/rendering.dart';
 class UserInfos extends StatefulWidget {
   final String username;
   final Map<String, dynamic> user;
-  final List<dynamic> cursus;
+  final dynamic cursus;
   final String image;
   final bool staff;
 
@@ -73,7 +73,7 @@ class _UserInfosState extends State<UserInfos> {
               SizedBox(
                 width: 200,
                 child: Text(
-                  'Level: ${widget.cursus[1]['level']}',
+                  'Level: ${widget.cursus['level']}',
                   softWrap: true,
                   style: TextStyle(fontSize: 16),
                 ),
