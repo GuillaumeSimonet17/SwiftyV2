@@ -256,12 +256,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 image: user['image']['link'],
                               ),
                               SizedBox(height: 70),
-                              RadarChartExtend(
-                                skillNames: skillNames,
-                                skillLevels: skillLevels,
-                              ),
+                              if (skillLevels.isNotEmpty)
+                                RadarChartExtend(
+                                  skillNames: skillNames,
+                                  skillLevels: skillLevels,
+                                ),
                               SizedBox(height: 70),
-                              ProjectsList(projects: user['projects_users']),
+                              if (skillLevels.isNotEmpty)
+                                ProjectsList(projects: user['projects_users']),
                             ],
                           ),
                         ),
